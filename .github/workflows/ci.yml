@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docker/**'
+      - 'gvisor/**'
+      - 'e2b/**'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    branches: [main]
+  schedule:
+    # 每周一 09:00 UTC 运行 Docker CI 验证
+    - cron: '0 9 * * 1'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 检查 Phase 1 指南 README 是否存在
+  # ---------------------------------------------------------------------------
+  check-guides:
+    name: Check Guide READMEs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify Phase 1 guide READMEs exist
+        run: |
+          MISSING=0
+          for guide in docker gvisor e2b; do
+            if [ ! -f "${guide}/README.md" ]; then
+              echo "::error::Missing required guide: ${guide}/README.md"
+              MISSING=1
+            else
+              echo "::notice::Found guide: ${guide}/README.md"
+            fi
+          done
+          if [ "${MISSING}" -eq 1 ]; then
+            echo "One or more required guide READMEs are missing."
+            exit 1
+          fi
+          echo "All Phase 1 guide READMEs present."
+
+      - name: Verify guide sections
+        run: |
+          REQUIRED_SECTIONS=(
+            "Prerequisites"
+            "Quick Start"
+            "Full Configuration Guide"
+            "fyy CLI Integration Verification"
+            "Skill Installation and Running Example"
+            "Troubleshooting"
+            "Security Considerations"
+            "Learn More about FYY Platform"
+            "Related Links"
+          )
+          MISSING=0
+          for guide in docker gvisor e2b; do
+            echo "Checking ${guide}/README.md sections..."
+            for section in "${REQUIRED_SECTIONS[@]}"; do
+              if ! grep -q "${section}" "${guide}/README.md"; then
+                echo "::warning::Missing section '${section}' in ${guide}/README.md"
+                MISSING=1
+              fi
+            done
+          done
+          if [ "${MISSING}" -eq 1 ]; then
+            echo "Some required sections are missing."
+            exit 1
+          fi
+          echo "All required sections present."
+
+  # ---------------------------------------------------------------------------
+  # Markdown 链接检查
+  # ---------------------------------------------------------------------------
+  markdown-link-check:
+    name: Check Markdown Links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          config-file: '.markdown-link-check.json'
+          folder-path: 'docker,gvisor,e2b'
+          max-depth: 2
+
+  # ---------------------------------------------------------------------------
+  # Docker 沙箱 CI 验证（仅在 Docker 相关文件变更时运行）
+  # ---------------------------------------------------------------------------
+  docker-ci-verify:
+    name: Docker Sandbox CI Verify
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' ||
+      (github.event_name == 'push' && contains(github.event.head_commit.modified, 'docker/')) ||
+      (github.event_name == 'pull_request')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Docker CI verification
+        working-directory: docker
+        env:
+          FYY_SANDBOX_TAG: latest
+        run: |
+          chmod +x examples/ci-verify.sh
+          bash examples/ci-verify.sh

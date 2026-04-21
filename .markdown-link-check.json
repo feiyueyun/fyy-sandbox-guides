@@ -1,0 +1,27 @@
+{
+  "ignorePatterns": [
+    {
+      "pattern": "^https://fyy\\.dev"
+    },
+    {
+      "pattern": "^https://feiyueyun\\.com"
+    },
+    {
+      "pattern": "^https://discord\\.gg"
+    },
+    {
+      "pattern": "^https://twitter\\.com"
+    }
+  ],
+  "httpHeaders": [
+    {
+      "urls": ["https://github.com"],
+      "headers": {
+        "Accept": "text/html"
+      }
+    }
+  ],
+  "timeout": "20s",
+  "retryCount": 2,
+  "fallbackRetryDelay": "5s"
+}

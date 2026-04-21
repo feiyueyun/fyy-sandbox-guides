@@ -1,0 +1,37 @@
+{
+  // Docker daemon 配置 — 启用 gVisor runsc 运行时
+  //
+  // 使用方法:
+  //   1. 复制到 /etc/docker/daemon.json
+  //   2. 重启 Docker: sudo systemctl restart docker
+  //   3. 使用运行时: docker run --runtime=runsc ...
+  //
+  // 注意: 如果已有 daemon.json，请将 runsc 配置合并到 "runtimes" 字段中
+
+  "runtimes": {
+    // runsc — gVisor 用户态内核容器运行时
+    // 提供内核级隔离：容器内进程无法直接访问宿主机内核
+    "runsc": {
+      "path": "/usr/bin/runsc",
+      "runtimeArgs": [
+        // 平台选择: systrap (默认) 或 kvm
+        // systrap: 兼容性最好，适用于所有 Linux 环境
+        // kvm: 性能更好，需要 /dev/kvm 支持
+        "--platform=systrap"
+
+        // 日志配置 (调试时启用)
+        // "--log=/var/log/runsc/",
+        // "--log-format=json",
+        // "--debug"
+
+        // 文件系统访问控制
+        // "--rootless=false"
+
+        // 网络栈选择: sandbox (默认) 或 raw
+        // sandbox: 每个容器独立的网络命名空间
+        // raw: 使用宿主机网络栈 (性能更好，隔离更弱)
+        // "--network=sandbox"
+      ]
+    }
+  }
+}
